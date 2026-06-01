@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Орфографический тренажёр Лизы</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:radial-gradient(circle at top,#18224d,#050711 70%);
+  color:white;
+}
+
+.container{
+  max-width:1180px;
+  margin:auto;
+  padding:26px;
+}
+
+h1,.subtitle{
+  text-align:center;
+}
+
+.words{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(320px,1fr));
+  gap:12px;
+  padding:12px;
+  border-radius:18px;
+  background:rgba(255,255,255,.06);
+  box-shadow:0 0 25px rgba(0,255,255,.18);
+}
+
+.word{
+  font-size:26px;
+  padding:14px 16px;
+  border-radius:14px;
+  background:rgba(255,255,255,.08);
+  line-height:1.6;
+}
+
+input{
+  width:54px;
+  height:34px;
+  margin:0 3px;
+  text-align:center;
+  font-size:24px;
+  font-weight:bold;
+  border-radius:8px;
+  border:2px solid #78f7ff;
+  background:white;
+}
+
+.correct{
+  background:#72ff9d;
+}
+
+.wrong{
+  background:#ff7777;
+}
+
+.controls{
+  text-align:center;
+  margin-top:22px;
+}
+
+button{
+  font-size:20px;
+  padding:12px 24px;
+  margin:7px;
+  border:none;
+  border-radius:14px;
+  cursor:pointer;
+  background:linear-gradient(135deg,#79f7ff,#b37cff);
+  font-weight:bold;
+  transition:.2s;
+}
+
+button:hover{
+  transform:scale(1.05);
+}
+
+#result{
+  text-align:center;
+  font-size:24px;
+  font-weight:bold;
+  margin-top:16px;
+}
+
+.errors{
+  display:none;
+  margin-top:18px;
+  padding:16px;
+  border-radius:16px;
+  background:rgba(255,80,80,.12);
+  border:1px solid rgba(255,120,120,.35);
+}
+
+.errors li{
+  font-size:22px;
+  margin:10px 0;
+}
+
+input:disabled{
+  opacity:1;
+  color:black;
+  cursor:not-allowed;
+}
+
+.stageBtns{
+  text-align:center;
+  margin:18px 0;
+}
+
+.stageBtns button{
+  font-size:16px;
+  padding:8px 12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🚀 Орфографический тренажёр Лизы</h1>
+
+<div class="subtitle">
+Вставь пропущенные буквы
+</div>
+
+<div class="stageBtns" id="stageBtns"></div>
+
+<div class="words" id="words"></div>
+
+<div class="controls">
+  <button onclick="checkAnswers()">Проверить</button>
+  <button onclick="resetAnswers()">Сбросить</button>
+</div>
+
+<div id="result"></div>
+
+<div id="errors" class="errors">
+  <h3>Ошибки:</h3>
+  <ul id="errorList"></ul>
+</div>
+
+</div>
+
+<script>
+
+const words = [
+
+["г","о","р","и","зонт","г<b>о</b>р<b>и</b>зонт"],
+
+["серебр","ян","ый","серебр<b>ян</b>ый"],
+
+["что-то непр","е","ходящее (вечное)","что-то непр<b>е</b>ходящее (вечное)"],
+
+["ч","а","щ","о","ба","ч<b>а</b>щ<b>о</b>ба"],
+
+["панц","и","рь","панц<b>и</b>рь"],
+
+["впеч","а","тление","впеч<b>а</b>тление"],
+
+["птиц","ы","","птиц<b>ы</b>"],
+
+["пр","и","брежные скалы","пр<b>и</b>брежные скалы"],
+
+["как н","и"," тяжёл был путь","как н<b>и</b> тяжёл был путь"],
+
+["на раскорч","ё"," ванной площадке","на раскорч<b>ё</b> ванной площадке"],
+
+["д","о","щатый домик","д<b>о</b>щатый домик"],
+
+["несколько треп","е","тных искр","несколько треп<b>е</b>тных искр"],
+
+["ветер гон","и","т крупу","ветер гон<b>и</b>т крупу"],
+
+["река ш","е","велится","река ш<b>е</b>велится"],
+
+["разб","и","вает льдины","разб<b>и</b>вает льдины"],
+
+["лента, разв","е","вающаяся на ветру","лента, разв<b>е</b>вающаяся на ветру"],
+
+["летящ","ее"," имя","летящ<b>ее</b> имя"],
+
+["не ж","а","лея красок","не ж<b>а</b>лея красок"],
+
+["забл","и","стали","забл<b>и</b>стали"]
+
+];
+
+const perStage = 16;
+
+const stages = [];
+
+for(let i = 0; i < words.length; i += perStage){
+  stages.push(words.slice(i, i + perStage));
+}
+
+let currentStage = 0;
+
+function renderStageButtons(){
+
+  const nav = document.getElementById("stageBtns");
+
+  nav.innerHTML = "";
+
+  stages.forEach((_, i) => {
+
+    const btn = document.createElement("button");
+
+    btn.textContent = i + 1;
+
+    if(i === currentStage){
+      btn.style.boxShadow = "0 0 12px white";
+    }
+
+    btn.onclick = () => {
+
+      currentStage = i;
+
+      renderWords();
+
+      renderStageButtons();
+
+      clearResult();
+
+      window.scrollTo({top:0,behavior:"smooth"});
+
+    };
+
+    nav.appendChild(btn);
+
+  });
+
+}
+
+function renderWords(){
+
+  const box = document.getElementById("words");
+
+  box.innerHTML = "";
+
+  stages[currentStage].forEach(item => {
+
+    const div = document.createElement("div");
+
+    div.className = "word";
+
+    if(item.length === 6){
+
+      div.dataset.full = item[5];
+
+      div.innerHTML =
+        `${item[0]}<input data-answer="${item[1]}" maxlength="2">${item[2]}<input data-answer="${item[3]}" maxlength="2">${item[4]}`;
+
+    } else {
+
+      div.dataset.full = item[3];
+
+      div.innerHTML =
+        `${item[0]}<input data-answer="${item[1]}" maxlength="2">${item[2]}`;
+
+    }
+
+    box.appendChild(div);
+
+  });
+
+}
+
+function checkAnswers(){
+
+  const inputs = document.querySelectorAll("input[data-answer]");
+
+  let correct = 0;
+  let wrong = 0;
+
+  const errorList = document.getElementById("errorList");
+  errorList.innerHTML = "";
+
+  inputs.forEach(input => {
+
+    const user =
+      input.value.trim().toLowerCase().replaceAll("ё","е");
+
+    const right =
+      input.dataset.answer.toLowerCase().replaceAll("ё","е");
+
+    input.classList.remove("correct","wrong");
+
+    if(user === right){
+
+      input.classList.add("correct");
+      correct++;
+
+    } else {
+
+      input.classList.add("wrong");
+      wrong++;
+
+      const li = document.createElement("li");
+      li.innerHTML = input.parentElement.dataset.full;
+
+      if(!errorList.innerHTML.includes(li.innerHTML)){
+        errorList.appendChild(li);
+      }
+
+    }
+
+    input.disabled = true;
+
+  });
+
+  document.getElementById("result").textContent =
+    `Страница ${currentStage + 1}. Правильно: ${correct} | Ошибок: ${wrong}`;
+
+  document.getElementById("errors").style.display =
+    wrong ? "block" : "none";
+
+}
+
+function resetAnswers(){
+
+  document.querySelectorAll("input").forEach(input => {
+
+    input.value = "";
+    input.disabled = false;
+    input.classList.remove("correct","wrong");
+
+  });
+
+  clearResult();
+
+}
+
+function clearResult(){
+
+  document.getElementById("result").textContent = "";
+  document.getElementById("errorList").innerHTML = "";
+  document.getElementById("errors").style.display = "none";
+
+}
+
+renderWords();
+renderStageButtons();
+
+</script>
+
+</body>
+</html>
